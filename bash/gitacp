@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+# Check that at least two arguments are provided (one or more files and a commit message)
+if [ "$#" -lt 2 ]; then
+  echo "Usage: $0 file1 [file2 ... fileN] 'commit message'"
+  exit 1
+fi
+
+# Extract the commit message (the last argument)
+commit_msg="${@: -1}"
+
+# Extract all arguments except the last one as files to add
+files_to_add=("${@:1:$#-1}")
+
+# Stage the files
+git add "${files_to_add[@]}"
+
+# Commit with the given message
+git commit -m "$commit_msg"
+
+# Get the current branch name
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Push to the current branch
+git push origin "$current_branch"
