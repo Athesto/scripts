@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+if [ -z "$TMUX" ]; then
+  echo "🚫 This script needs a TMUX session to be executed"
+  exit 1
+fi
+
+WINDOW_NAME="copy-buffer-preview"
+CONTENT=$(cat)
+
+printf "%s" "$CONTENT" | tmux load-buffer -
+tmux new-window -n "$WINDOW_NAME" "tmux show-buffer; read"
+
+PREV_BUFFER=$(tmux list-buffer | head -1 | cut -d: -f1)
+tmux delete-buffer -b "$PREV_BUFFER"
+
+sleep 0.3
+tmux copy-mode -t "$WINDOW_NAME"
+tmux send-keys -t "$WINDOW_NAME" -X cursor-left
+tmux send-keys -t "$WINDOW_NAME" -X begin-selection
+tmux send-keys -t "$WINDOW_NAME" -X history-top
+tmux send-keys -t "$WINDOW_NAME" -X copy-selection-and-cancel
+
+
+tmux kill-window -t "$WINDOW_NAME"
