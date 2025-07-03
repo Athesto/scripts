@@ -10,8 +10,6 @@ CONTENT=$(cat)
 printf "%s" "$CONTENT" | tmux load-buffer -
 tmux new-window -n "$WINDOW_NAME" "tmux show-buffer; read"
 
-PREV_BUFFER=$(tmux list-buffer | head -1 | cut -d: -f1)
-tmux delete-buffer -b "$PREV_BUFFER"
 
 sleep 0.3
 tmux copy-mode -t "$WINDOW_NAME"
@@ -20,5 +18,7 @@ tmux send-keys -t "$WINDOW_NAME" -X begin-selection
 tmux send-keys -t "$WINDOW_NAME" -X history-top
 tmux send-keys -t "$WINDOW_NAME" -X copy-selection-and-cancel
 
+PREV_BUFFER=$(tmux list-buffer | head -1 | cut -d: -f1)
+tmux delete-buffer -b "$PREV_BUFFER"
 
 tmux kill-window -t "$WINDOW_NAME"
