@@ -1,4 +1,55 @@
 #!/usr/bin/env bash
+
+##
+# NAME
+#     tmux-copy-selection - preview and copy stdin to tmux buffer
+#
+# SYNOPSIS
+#     tmux-copy-selection [-h|--help]
+#     some-command | tmux-copy-selection
+#
+# DESCRIPTION
+#     This script loads input from standard input and copies it to
+#     the tmux buffer using tmux's copy-mode interface.
+#
+#     It opens a temporary tmux window named "copy-buffer-preview",
+#     displays the input using `tmux show-buffer`, enters copy-mode,
+#     selects the entire content, copies it, and automatically closes
+#     the window and cleans up.
+#
+#     This script is especially useful when utilities like `xclip`,
+#     `xsel`, `pbcopy`, or `wl-copy` are not available in the system,
+#     or when you're working in a terminal-only environment without
+#     GUI clipboard access.
+#
+#     The content will be stored in tmux’s internal buffer and can be
+#     pasted into any pane using the standard tmux paste keys
+#     (usually `prefix + ]`).
+#
+# OPTIONS
+#     -h, --help
+#         Show this help message and exit.
+#
+# EXAMPLES
+#     echo "Hello, world" | tmux-copy-selection
+#     cat myfile.txt | tmux-copy-selection
+#
+# REQUIREMENTS
+#     - Must be executed inside a tmux session (`$TMUX` must be set).
+#     - Tmux must be installed and properly configured.
+#
+# BEHAVIOR
+#     - If not inside a tmux session, the script exits with an error.
+#     - Temporarily loads input into the tmux buffer.
+#     - Simulates selection and copying via copy-mode.
+#     - Deletes the temporary buffer and window after completion.
+#
+# AUTHOR
+#     athesto - https://athesto.github.io
+
+# Help command
+[[ "$*" =~ (-h|--help) ]] && sed -n '/^##$/,/^$/ {s/.//;s/.//;p}' "$0" && exit 0
+
 if [ -z "$TMUX" ]; then
   echo "🚫 This script needs a TMUX session to be executed"
   exit 1
@@ -13,7 +64,7 @@ tmux new-window -n "$WINDOW_NAME" "tmux show-buffer; read"
 
 sleep 0.3
 tmux copy-mode -t "$WINDOW_NAME"
-tmux send-keys -t "$WINDOW_NAME" -X cursor-left
+#tmux send-keys -t "$WINDOW_NAME" -X cursor-left #  sometimes it takes a new line at the end
 tmux send-keys -t "$WINDOW_NAME" -X begin-selection
 tmux send-keys -t "$WINDOW_NAME" -X history-top
 tmux send-keys -t "$WINDOW_NAME" -X copy-selection-and-cancel
