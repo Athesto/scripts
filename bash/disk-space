@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+##
+# NAME
+#     disk-space - show disk space using a pattern filter
+#
+# SYNOPSIS
+#     disk-space [-h|--help] [pattern]
+#
+# DESCRIPTION
+#     This script shows disk usage information from the 'df' command,
+#     filtering the results using an optional regular expression
+#     pattern.  By default, it matches USB or MMC devices (pattern:
+#     'usb|mmc').
+#
+#     The help can be displayed by passing -h, --help as an argument.
+#
+# AUTHOR
+#     athesto - https://athesto.github.io
+
+# Help command
+[[ "$*" =~ (-h|--help) ]] && sed -n '/^##$/,/^$/ {s/.//;s/.//;p}' "$0" && exit 0
+
+# Obtener patrón de filtro desde argumento o usar valor por defecto
+FILTER=${1:-"usb|mmc"}
+
+echo
+echo "📦 Disk Space (matching: $FILTER)"
+
+df --si -h --output=source,target,fstype,size,used,pcent,avail | {
+    read -r header;
+    echo "$header";
+    grep -Ei "$FILTER" | sort -k2;
+}
