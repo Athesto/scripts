@@ -27,7 +27,7 @@ FILTER=${1:-"usb|mmc"}
 echo
 echo "📦 Disk Space (matching: $FILTER)"
 
-df --si -h --output=source,target,fstype,size,used,pcent,avail | {
+df --si -h --output=source,target,fstype,used,avail,size,pcent | {
     read -r header;
     echo "$header";
     grep -Ei "$FILTER" | sort -k2;
