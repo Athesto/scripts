@@ -1,5 +1,43 @@
 #!/usr/bin/env bash
 
+##
+# NAME
+#     gitacp - git add + commit + push
+#
+# SYNOPSIS
+#     gitacp [-h|--help] file1 [file2 ... fileN] "commit message"
+#
+# DESCRIPTION
+#     This script automates the process of staging multiple files,
+#     committing them with a message, and pushing the changes to
+#     the current Git branch.
+#
+#     The last argument is treated as the commit message.
+#     All other arguments are interpreted as files to stage with `git add`.
+#
+#     Example:
+#         ./gitacp index.js README.md "Fix JS bug and update docs"
+#
+#     This will:
+#         - git add index.js and README.md
+#         - git commit with the provided message
+#         - git push to the currently checked-out branch
+#
+# OPTIONS
+#     -h, --help 
+#         Display this help message.
+#
+# REQUIREMENTS
+#     - Must be run inside a Git repository
+#     - Requires at least one file and one commit message
+#
+# AUTHOR
+#     athesto - https://athesto.github.io
+
+# Show help if requested
+[[ " $* " =~ [[:space:]](-h|--help)[[:space:]] ]] \
+  && sed -n '/^##$/,/^$/ {s/.//;s/.//;p}' "$0" && exit 0
+
 # Check that at least two arguments are provided (one or more files and a commit message)
 if [ "$#" -lt 2 ]; then
   echo "Usage: $0 file1 [file2 ... fileN] 'commit message'"
