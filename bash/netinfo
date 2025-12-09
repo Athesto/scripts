@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Debug
+[[ "$*" =~ (--debug|-d) ]] && set -x
+
+#------------------------------------------------------------------------------
+#  HELP
+#------------------------------------------------------------------------------
+
+HELP=$(cat <<EOF
+NAME
+    $(basename "$0") - get network info
+
+DESCRIPTION
+    Shows some useful network information
+
+OPTIONS
+    -h, --help
+        shows this help
+
+    --version
+        shows version
+AUTHOR
+    athesto - athesto.github.io
+EOF
+)
+
+VERSION="1.0.0"
+
+# Mostrar ayuda
+[[ "$*" =~ (-h|--help) ]] && printf "%s\n" "$HELP" && exit 0
+
+# Mostrar versión
+[[ "$*" =~ (--version) ]] && printf "%s: %s\n" "$(basename "$0")" "$VERSION" && exit 0
+
+
+# Código del script
+public_ip="$(curl -sL ifconfig.io)"
+local_ip="$(ip route show default | awk '{print $9}' | head -n 1)"
+# shellcheck disable=SC1091
+os_name="$(. /etc/os-release; echo "$NAME")"
+
+printf "Public IP:\t%s\n" "$public_ip"
+printf "Local IP:\t%s\n" "$local_ip"
+printf "OS Name:\t%s\n" "$os_name"
