@@ -1,9 +1,33 @@
 
-//Version: 1741492905
+//Version: 1772921479
 
 downloader = {
   audios: [],
   videos: [],
+
+  HELP: `
+NAME
+    downloader - get video/audio URLs from network fetch entries
+
+DESCRIPTION
+    Extracts video/mp4 and audio/mp4 URLs from performance fetch entries.
+
+USAGE
+    downloader.getUrls()
+    downloader.openVideo(index)
+    downloader.openAudio(index)
+
+OPTIONS
+    help()
+        shows this help
+
+AUTHOR
+    athesto - athesto.github.io
+`,
+
+  help: function(){
+    console.log(this.HELP);
+  },
 
   stripURL: function(url) {
     const entries = ["range", "ump", "srfvp"];
