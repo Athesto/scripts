@@ -1,8 +1,68 @@
 /**
- * crunchyRollScrapper is  a script which fetchs basic information of the Catalog
+ * CrunchyRollScrapper
+ * ===================
  *
- **/
-const myCopy = copy; // save reference to windows-copy
+ * DevTools script for extracting basic series information from the
+ * Crunchyroll catalog and preparing it for Google Sheets.
+ *
+ * Run this script from Chrome DevTools on crunchyroll.com.
+ *
+ * Workflow:
+ *   1. getIds()
+ *      Runs on the alphabetical catalog and scrolls through the page
+ *      until no new series are loaded. Returns the discovered catalog IDs.
+ *
+ *   2. fetchOneSerie(seriesId, token)
+ *      Fetches the raw Crunchyroll JSON for one series and returns both
+ *      the original and normalized data.
+ *
+ *   3. fetchAllSeries(token, safeBatchSize)
+ *      Reads the catalog stored in Google Sheets, finds pending series,
+ *      fetches their metadata and generates TSV output ready to paste
+ *      back into the spreadsheet.
+ *
+ * Authentication:
+ *   A valid Crunchyroll Bearer token is required for series requests.
+ *   The token can be provided manually or requested with prompt("Token").
+ *
+ * Output:
+ *   Series are normalized into:
+ *     id, title, audios, subtitles, launchYear, seasonCount, mediaCount,
+ *     availability_status, keywords, description and thumbnail.
+ *
+ *   Multiple values such as audios, subtitles and keywords are stored
+ *   comma-separated inside their cell.
+ *
+ *   Spreadsheet output uses TSV:
+ *     \t = column separator
+ *     \n = row separator
+ *
+ * Public API:
+ *   crunchyRollScrapper.help()
+ *   crunchyRollScrapper.getIds(waitTime)
+ *   crunchyRollScrapper.fetchOneSerie(seriesId, token)
+ *   crunchyRollScrapper.fetchAllSeries(token, safeBatchSize)
+ *
+ * Quick start:
+ *
+ *   const token = prompt("Token");
+ *
+ *   // One series
+ *   await crunchyRollScrapper.fetchOneSerie("GYNQZV50Y", token);
+ *
+ *   // Pending series
+ *   await crunchyRollScrapper.fetchAllSeries(token, 200);
+ *
+ * Notes:
+ *   - `myCopy` keeps a reference to the DevTools `copy()` utility so it
+ *     remains available after asynchronous operations.
+ *   - `maxIterations` in getIds() is a safety limit; normal termination
+ *     happens when scrolling no longer loads a new catalog index.
+ *   - `safeBatchSize` limits how many series are requested in one run.
+ */
+
+const myCopy = copy;
+
 const crunchyRollScrapper = {
   help,
   getIds,
@@ -10,49 +70,55 @@ const crunchyRollScrapper = {
   fetchAllSeries,
 };
 
-// Main Functions
+// Main Functions =====================================================
 
 function help() {
   console.log(`
-Crunchy Scraper
+CrunchyRollScrapper
 
-Comandos:
+Commands:
 
-  crunchyScraper.getIds()
-    Obtiene los IDs del catálogo visible.
+  crunchyRollScrapper.getIds(waitTime)
+    Gets IDs from the alphabetical catalog.
 
-  crunchyScraper.fetchOneSerie(seriesId, token)
-    Obtiene y normaliza una serie.
+  crunchyRollScrapper.fetchOneSerie(seriesId, token)
+    Fetches and normalizes one series.
 
-  crunchyScraper.fetchAllSeries(token, safeBatchSize)
-    Procesa todas las series pendientes.
+  crunchyRollScrapper.fetchAllSeries(token, safeBatchSize)
+    Fetches pending series from Google Sheets
+    and generates TSV output.
 
-Ejemplos:
+Examples:
 
-  crunchyScraper.token = "TOKEN"
+  const token = prompt("Token");
 
-  await crunchyScraper.fetchOneSerie("GYNQZV50Y", token)
+  await crunchyRollScrapper.getIds();
 
-  await crunchyScraper.getRawSeries("GYNQZV50Y")
+  await crunchyRollScrapper.fetchOneSerie( "GYNQZV50Y", token);
+
+  await crunchyRollScrapper.fetchAllSeries( token, 200);
   `);
 }
 
 async function getIds(waitTime = 1e3) {
   const outputCatalog = {};
   const maxIterations = 120;
+
   if (
     !location.href.includes(
       "https://www.crunchyroll.com/es/videos/alphabetical",
     )
-  )
+  ) {
     throw new Error("No estamos en el catálogo");
+  }
 
   for (let i = 0; i < maxIterations; i++) {
     const batch = getCatalogBatch();
 
-    batch.forEach((x) => {
-      outputCatalog[x.listIndex] = x;
+    batch.forEach((item) => {
+      outputCatalog[item.listIndex] = item;
     });
+
     console.log("Catalog length: ", Object.keys(outputCatalog).length);
 
     const lastItem = batch.at(-1);
@@ -75,12 +141,20 @@ async function getIds(waitTime = 1e3) {
 }
 
 async function fetchOneSerie(seriesId, token) {
-  if (!seriesId) throw new Error("No serieId provided");
-  if (!token) throw new Error("No token provided");
+  if (!seriesId) {
+    throw new Error("No seriesId provided");
+  }
 
-  let serie = await fetchRawJSON(seriesId, token);
-  let normalizedSerie = normalizeData(serie);
+  if (!token) {
+    throw new Error("No token provided");
+  }
+
+  const serie = await fetchRawJSON(seriesId, token);
+
+  const normalizedSerie = normalizeData(serie);
+
   console.log(normalizedSerie);
+
   return {
     serie,
     normalizedSerie,
@@ -89,41 +163,50 @@ async function fetchOneSerie(seriesId, token) {
 
 async function fetchAllSeries(token, safeBatchSize = 3) {
   const csv = await fetchCSV();
-  const csv_filtered = csv.data.filter((x) => !x[3]);
-  const seriesIds = csv_filtered.map((x) => x[1]);
+
+  const csvFiltered = csv.data.filter((row) => !row[3]);
+
+  const seriesIds = csvFiltered.map((row) => row[1]);
+
   const series = [];
-  const seriesNormilied = [];
+  const seriesNormalized = [];
   const seriesValues = [];
 
   try {
     for (let i = 0; i < seriesIds.length && i < safeBatchSize; i++) {
-      const serieId = seriesIds[i];
-      const serieData = await fetchOneSerie(serieId, token);
+      const seriesId = seriesIds[i];
+
+      const serieData = await fetchOneSerie(seriesId, token);
+
       const normalizedSerie = serieData.normalizedSerie;
 
       series.push(serieData.serie);
-      seriesNormilied.push(normalizedSerie);
+      seriesNormalized.push(normalizedSerie);
+
       seriesValues.push(Object.values(normalizedSerie).join("\t"));
 
       await wait(1000);
     }
   } catch (error) {
-    console.log(error);
+    console.error(error);
   }
 
-  const seriesValuesCsv = seriesValues.join("\n");
-  console.log("output: ", seriesValuesCsv);
-  myCopy(seriesValuesCsv);
+  const seriesValuesTsv = seriesValues.join("\n");
+
+  console.log("output:", seriesValuesTsv);
+
+  myCopy(seriesValuesTsv);
+
   return {
     seriesIds,
     series,
-    seriesNormilied,
+    seriesNormalized,
     seriesValues,
-    seriesValuesCsv,
+    seriesValuesTsv,
   };
 }
 
-// Secondary Functions
+// Secondary Functions =================================================
 
 const audioPriority = {
   "ja-JP": 1,
@@ -134,6 +217,7 @@ const audioPriority = {
 function sortLocales(locales) {
   return locales.toSorted((a, b) => {
     const priorityA = audioPriority[a] ?? 99;
+
     const priorityB = audioPriority[b] ?? 99;
 
     if (priorityA !== priorityB) {
@@ -153,17 +237,19 @@ function normalizeData(rawJSON) {
     launchYear: rawJSON.series_launch_year,
     seasonCount: rawJSON.season_count,
     mediaCount: rawJSON.media_count,
-    availability_status: rawJSON.availability_status,
+    availabilityStatus: rawJSON.availability_status,
     keywords: rawJSON.keywords.toSorted().join(","),
     description: tsvEscape(rawJSON.description),
     thumbnail: rawJSON.images.poster_tall[0][0].source,
   };
 }
 
-async function fetchRawJSON(serieId, token) {
-  const url =
-    `https://www.crunchyroll.com/content/v2/cms/series/${serieId}` +
-    "?preferred_audio_language=es-419&locale=es-419";
+async function fetchRawJSON(seriesId, token) {
+  const url = new URL(`/content/v2/cms/series/${seriesId}`, location.origin);
+
+  url.searchParams.set("preferred_audio_language", "es-419");
+
+  url.searchParams.set("locale", "es-419");
 
   const response = await fetch(url, {
     headers: {
@@ -172,25 +258,29 @@ async function fetchRawJSON(serieId, token) {
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${serieId}`);
+    throw new Error(`HTTP ${response.status}: ${seriesId}`);
   }
+
   const json = await response.json();
+
   return json.data[0];
 }
 
 function getCatalogBatch() {
   const batch = [];
+
   const nodes = document.querySelectorAll('div[data-t="series-card"]');
 
   nodes.forEach((node) => {
+    const listItem = node.closest('div[role="listitem"]');
+    const href = node.querySelector("a").href;
     batch.push({
-      listIndex: node
-        .closest('div[role="listitem"]')
-        .getAttribute("data-index"),
-      node: node,
-      id: node.querySelector("a").href.split("/")[5],
+      listIndex: listItem.getAttribute("data-index"),
+      node,
+      id: href.split("/")[5],
     });
   });
+
   return batch;
 }
 
@@ -199,30 +289,41 @@ async function fetchCSV(gidVersion = "v2") {
     v1: "601086096",
     v2: "2074698852",
   }[gidVersion];
-  if (!gid) throw new Error("Invalid version");
 
-  const url_ids = new URL(
+  if (!gid) {
+    throw new Error("Invalid version");
+  }
+
+  const urlIds = new URL(
     "https://docs.google.com/spreadsheets/d/1vU9mGdrEqa308--st4v9j-H8ZcVrDH1ZXl3rdCnGGBE/export",
   );
-  url_ids.searchParams.set("format", "csv");
-  url_ids.searchParams.set("gid", gid);
 
-  const response = await fetch(url_ids);
+  urlIds.searchParams.set("format", "csv");
+
+  urlIds.searchParams.set("gid", gid);
+
+  const response = await fetch(urlIds);
+
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${url_ids}`);
+    throw new Error(`HTTP ${response.status}: ${urlIds}`);
   }
+
   const text = await response.text();
-  const raw_data = text.split("\r\n").map(parseCSVLine);
-  const data = raw_data.filter((x) => !x[3]);
+
+  const rawData = text.split("\r\n").map(parseCSVLine);
+
+  const data = rawData.filter((row) => !row[3]);
+
   return {
     text,
     data,
-    raw_data,
+    rawData,
   };
 }
 
 function parseCSVLine(line) {
   const values = [];
+
   let value = "";
   let quoted = false;
 
@@ -268,25 +369,25 @@ async function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Entry Point ========================================================
+// Entry Point =========================================================
 
-// // Fetch CSV ----------------------------------
+// Fetch CSV -----------------------------------------------------------
 // const output = await fetchCSV("v1");
 // myCopy(output.text);
 
-// // getFullCatalog -----------------------------
+// Get full catalog ids ------------------------------------------------
 // const output = await getIds(3e3);
-// myCopy(JSON.stringify(output, null, 2));
+// myCopy( JSON.stringify( output, null, 2));
 
-// // Fetch single Serie -------------------------
+// Fetch single series -------------------------------------------------
 // const token = prompt("Token");
-// const token = "<YOUR_TOKEN>";
-// const serieId = "GT00371668";
-// const output = await crunchyRollScrapper.fetchOneSerie(serieId, token);
-// myCopy(JSON.stringify(output.normalizedSerie, null, 2));
+// const token = "eyJhbGciOi..."
+// const seriesId = "GT00371668";
+// const output = await crunchyRollScrapper .fetchOneSerie( seriesId, token);
+// myCopy( JSON.stringify( output.normalizedSerie, null, 2));
 
-// // Fetch all Series ----------------------------
-// //const token = prompt("Token")
-// const token = "<YOUR_TOKEN>";
-// const output = await crunchyRollScrapper.fetchAllSeries(token, 3);
-// myCopy(output.seriesValuesCsv);
+// Fetch all series ----------------------------------------------------
+// const token = prompt("Token");
+// const token = "eyJhbGciOi..."
+// const output = await crunchyRollScrapper .fetchAllSeries( token, 3);
+// myCopy( output.seriesValuesTsv);
