@@ -2,56 +2,31 @@
 set -euo pipefail # ExitOnError | UnsetError | PipelineFail
 
 #------------------------------------------------------------------------------
-#  HELP
+#  METADATA
 #------------------------------------------------------------------------------
 
-VERSION="2.1.0"
+VERSION="2.2.0"
 PROGRAM=$(basename "$0")
+
 HELP=$(cat <<EOF
-NAME
-    ${PROGRAM} - track public IP address changes
+Usage: ${PROGRAM} [OPTION | COMMAND]
 
-DESCRIPTION
-    Shows the current public IP address and keeps a history
-    whenever it changes.
+Track public IP address changes.
 
-COMMANDS
-    current
-        shows the current public IP address
+Commands:
+  current       Show the current public IP address (default)
+  update        Log the public IP if it changed
+  log           Show the public IP history
+  man           Show the full manual
 
-    update
-        checks the current public IP and logs it if it changed
-
-    log
-        shows the public IP history
-
-OPTIONS
-    --help
-        shows this help
-
-    --version
-        shows version
-
-EXAMPLES
-    Show the current public IP:
-        ${PROGRAM}
-
-    Explicitly show the current public IP:
-        ${PROGRAM} current
-
-    Update the public IP history:
-        ${PROGRAM} update
-
-    Show the public IP history:
-        ${PROGRAM} log
-
-AUTHOR
-    athesto - athesto.github.io
+Options:
+  --help        Show this help
+  --version     Show version
 EOF
 )
 
-[[ "$*" =~ --help ]] && printf "%s\n" "${HELP}" && exit 0
-[[ "${1:-}" == --version ]] && echo "${PROGRAM} ${VERSION}" && exit 0
+[[ "$*" =~ --help ]] && printf "%s\n" "$HELP" && exit 0
+[[ "${1:-}" == --version ]] && printf "%s %s\n" "$PROGRAM" "$VERSION" && exit 0
 
 #------------------------------------------------------------------------------
 #  CONFIG
@@ -93,8 +68,23 @@ show_log() {
     fi
 }
 
+show_man() {
+    local man_dir="${HOME}/.local/share/man/man1"
+    local man_file="${man_dir}/${PROGRAM}.1"
+    local man_url="https://athesto.github.io/scripts/bash/man/${PROGRAM}.1"
+
+    mkdir -p "$man_dir"
+
+    if [[ ! -f "$man_file" ]]; then
+        printf 'Downloading manual...\n'
+        curl -fsSL "$man_url" -o "$man_file"
+    fi
+
+    man "$man_file"
+}
+
 #------------------------------------------------------------------------------
-#  MAIN
+#  MAIN / ENTRY POINT
 #------------------------------------------------------------------------------
 
 case "${1:-current}" in
@@ -110,9 +100,13 @@ case "${1:-current}" in
         show_log
         ;;
 
+    man)
+        show_man
+        ;;
+
     *)
         printf 'Unknown command: %s\n' "$1" >&2
-        printf 'Try "%s --help" for more information.\n' "${PROGRAM}" >&2
+        printf 'Try "%s --help" for more information.\n' "$PROGRAM" >&2
         exit 1
         ;;
 esac

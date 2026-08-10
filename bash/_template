@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail # ExitOnError | UnsetError | PipelineFail
+
+#------------------------------------------------------------------------------
+#  METADATA
+#------------------------------------------------------------------------------
+
+VERSION="0.1.0"
+PROGRAM=$(basename "$0")
+
+HELP=$(cat <<EOF
+Usage: ${PROGRAM} [OPTION | COMMAND]
+
+Short program description.
+
+Commands:
+  command       Short command description
+
+Options:
+  --help        Show this help
+  --version     Show version
+EOF
+)
+
+[[ "$*" =~ --help ]] && printf "%s\n" "$HELP" && exit 0
+[[ "${1:-}" == --version ]] && printf "%s %s\n" "$PROGRAM" "$VERSION" && exit 0
+
+#------------------------------------------------------------------------------
+#  FUNCTIONS
+#------------------------------------------------------------------------------
+
+example_function() {
+    printf 'Hello World!\n'
+}
+
+#------------------------------------------------------------------------------
+#  MAIN / ENTRY POINT
+#------------------------------------------------------------------------------
+
+case "${1:-}" in
+    command)
+        example_function
+        ;;
+
+    *)
+        printf 'Unknown command: %s\n' "${1:-}" >&2
+        printf 'Try "%s --help" for more information.\n' "$PROGRAM" >&2
+        exit 1
+        ;;
+esac
