@@ -1,0 +1,112 @@
+.\" public-ip manual
+.\" Author: athesto
+.\" Drafted with assistance from ChatGPT
+.TH PUBLIC-IP 1 "August 2026" "public-ip" "User Commands"
+
+.SH NAME
+public-ip \- track public IP address changes
+
+.SH SYNOPSIS
+.B public-ip
+.RI [ OPTION " | " COMMAND ]
+
+.SH DESCRIPTION
+.B public-ip
+retrieves the current public IP address and keeps a history of
+address changes.
+
+The current address is obtained from an external HTTP service.
+
+.SH COMMANDS
+.TP 12
+.B current
+Show the current public IP address.
+This is the default command.
+
+.TP
+.B update
+Check the current public IP address and append it to the history
+if it differs from the last recorded address.
+
+.TP
+.B log
+Show the public IP address history.
+
+.TP
+.B man
+Show this manual.
+If the manual is not available locally, it is downloaded first.
+
+.SH OPTIONS
+.TP 12
+.B --help
+Show a short help message and exit.
+
+.TP
+.B --version
+Show the program version and exit.
+
+.SH FILES
+.TP 12
+.I ~/.local/share/public-ip.log
+History of detected public IP address changes.
+
+.TP
+.I ~/.local/share/man/man1/public-ip.1
+Local copy of this manual.
+
+.SH EXAMPLES
+Show the current public IP:
+.RS
+.EX
+public-ip
+.EE
+.RE
+
+Explicitly request the current address:
+.RS
+.EX
+public-ip current
+.EE
+.RE
+
+Update the history:
+.RS
+.EX
+public-ip update
+.EE
+.RE
+
+Show previous addresses:
+.RS
+.EX
+public-ip log
+.EE
+.RE
+
+Show this manual:
+.RS
+.EX
+public-ip man
+.EE
+.RE
+
+.SH EXIT STATUS
+.TP
+.B 0
+Successful execution.
+
+.TP
+.B 1
+An error occurred.
+
+.SH BUGS
+https://github.com/athesto/scripts/issues
+
+.SH AUTHOR
+athesto \- athesto.github.io
+
+.SH SEE ALSO
+.BR curl (1),
+.BR ip (8),
+.BR man (1)
