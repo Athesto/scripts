@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -euo pipefail # ExitOnError | UnsetError | PipelineFail
+
+#------------------------------------------------------------------------------
+#  HELP
+#------------------------------------------------------------------------------
+
+HELP=$(cat <<EOF
+NAME
+    $(basename "$0") - get network info
+
+DESCRIPTION
+    Shows some useful network information and keeps a history
+    of public IP address changes.
+
+OPTIONS
+    -h, --help
+        shows this help
+
+    --current
+        shows current public IP
+
+    --log
+        shows public IP history
+
+    --update
+        checks current public IP and logs it if it changed
+
+    --version
+        shows version
+
+AUTHOR
+    athesto - athesto.github.io
+EOF
+)
+
+VERSION="1.0.0"
+LOG="${HOME}/.local/share/public-ip.log"
+
+# Mostrar ayuda
+[[ "$*" =~ (--help) ]] && printf "%s\n" "$HELP" && exit 0
+
+# Mostrar versión
+[[ "$*" =~ (--version) ]] && \
+    printf "%s: %s\n" "$(basename "$0")" "$VERSION" && exit 0
+
+#------------------------------------------------------------------------------
+#  FUNCTIONS
+#------------------------------------------------------------------------------
+
+get_ip() {
+    curl -fsS https://api.ipify.org
+}
+
+update_ip() {
+    mkdir -p "$(dirname "$LOG")"
+
+    local ip
+    local last_ip
+
+    ip="$(get_ip)"
+    last_ip="$(tail -n 1 "$LOG" 2>/dev/null | awk '{print $2}' || true)"
+
+    if [[ "$ip" != "$last_ip" ]]; then
+        printf '%s %s\n' \
+            "$(date '+%Y-%m-%dT%H:%M:%S%z')" \
+            "$ip" >> "$LOG"
+
+        printf 'Public IP changed: %s\n' "$ip"
+    fi
+}
+
+show_log() {
+    if [[ -f "$LOG" ]]; then
+        cat "$LOG"
+    else
+        printf 'No IP history yet.\n'
+    fi
+}
+
+#------------------------------------------------------------------------------
+#  MAIN
+#------------------------------------------------------------------------------
+
+case "${1:---update}" in
+    --current)
+        get_ip
+        printf '\n'
+        ;;
+
+    --log)
+        show_log
+        ;;
+
+    --update)
+        update_ip
+        ;;
+
+    *)
+        printf 'Unknown option: %s\n\n' "$1" >&2
+        printf '%s\n' "$HELP"
+        exit 1
+        ;;
+esac
