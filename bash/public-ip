@@ -5,68 +5,83 @@ set -euo pipefail # ExitOnError | UnsetError | PipelineFail
 #  HELP
 #------------------------------------------------------------------------------
 
+VERSION="2.1.0"
+PROGRAM=$(basename "$0")
 HELP=$(cat <<EOF
 NAME
-    $(basename "$0") - get network info
+    ${PROGRAM} - track public IP address changes
 
 DESCRIPTION
-    Shows some useful network information and keeps a history
-    of public IP address changes.
+    Shows the current public IP address and keeps a history
+    whenever it changes.
+
+COMMANDS
+    current
+        shows the current public IP address
+
+    update
+        checks the current public IP and logs it if it changed
+
+    log
+        shows the public IP history
 
 OPTIONS
-    -h, --help
+    --help
         shows this help
-
-    --current
-        shows current public IP
-
-    --log
-        shows public IP history
-
-    --update
-        checks current public IP and logs it if it changed
 
     --version
         shows version
+
+EXAMPLES
+    Show the current public IP:
+        ${PROGRAM}
+
+    Explicitly show the current public IP:
+        ${PROGRAM} current
+
+    Update the public IP history:
+        ${PROGRAM} update
+
+    Show the public IP history:
+        ${PROGRAM} log
 
 AUTHOR
     athesto - athesto.github.io
 EOF
 )
 
-VERSION="1.0.0"
+[[ "$*" =~ --help ]] && printf "%s\n" "${HELP}" && exit 0
+[[ "${1:-}" == --version ]] && echo "${PROGRAM} ${VERSION}" && exit 0
+
+#------------------------------------------------------------------------------
+#  CONFIG
+#------------------------------------------------------------------------------
+
 LOG="${HOME}/.local/share/public-ip.log"
-
-# Mostrar ayuda
-[[ "$*" =~ (--help) ]] && printf "%s\n" "$HELP" && exit 0
-
-# Mostrar versión
-[[ "$*" =~ (--version) ]] && \
-    printf "%s: %s\n" "$(basename "$0")" "$VERSION" && exit 0
 
 #------------------------------------------------------------------------------
 #  FUNCTIONS
 #------------------------------------------------------------------------------
 
-get_ip() {
-    curl -fsS https://api.ipify.org
+get_public_ip() {
+    curl -fsS https://ifconfig.io/ip
 }
 
-update_ip() {
+update_public_ip() {
     mkdir -p "$(dirname "$LOG")"
 
-    local ip
+    local current_ip
     local last_ip
 
-    ip="$(get_ip)"
+    current_ip="$(get_public_ip)"
     last_ip="$(tail -n 1 "$LOG" 2>/dev/null | awk '{print $2}' || true)"
 
-    if [[ "$ip" != "$last_ip" ]]; then
+    if [[ "$current_ip" != "$last_ip" ]]; then
         printf '%s %s\n' \
             "$(date '+%Y-%m-%dT%H:%M:%S%z')" \
-            "$ip" >> "$LOG"
+            "$current_ip" >> "$LOG"
 
-        printf 'Public IP changed: %s\n' "$ip"
+        printf 'Public IP changed: %s\n' "$current_ip"
     fi
 }
 
@@ -74,7 +89,7 @@ show_log() {
     if [[ -f "$LOG" ]]; then
         cat "$LOG"
     else
-        printf 'No IP history yet.\n'
+        printf 'No public IP history yet.\n'
     fi
 }
 
@@ -82,23 +97,22 @@ show_log() {
 #  MAIN
 #------------------------------------------------------------------------------
 
-case "${1:---update}" in
-    --current)
-        get_ip
-        printf '\n'
+case "${1:-current}" in
+    current)
+        get_public_ip
         ;;
 
-    --log)
+    update)
+        update_public_ip
+        ;;
+
+    log)
         show_log
         ;;
 
-    --update)
-        update_ip
-        ;;
-
     *)
-        printf 'Unknown option: %s\n\n' "$1" >&2
-        printf '%s\n' "$HELP"
+        printf 'Unknown command: %s\n' "$1" >&2
+        printf 'Try "%s --help" for more information.\n' "${PROGRAM}" >&2
         exit 1
         ;;
 esac
